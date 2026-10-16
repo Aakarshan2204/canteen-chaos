@@ -58,7 +58,7 @@ router.get(
     const now = new Date();
     const orders = store.read('orders');
     const menu = store.readMenu();
-    const live = orders.filter((o) => o.status !== 'cancelled');
+    const live = orders.filter((o) => o.status !== 'cancelled' && o.status !== 'refunded');
 
     const revenue = live.reduce((sum, o) => sum + o.total, 0);
     const tips = live.reduce((sum, o) => sum + (o.tip || 0), 0);

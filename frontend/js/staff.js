@@ -132,6 +132,11 @@ function renderStaffRows(orders, stalled = []) {
                 ? '<button class="mini-btn ghost" data-next="cancelled">Cancel</button>'
                 : ''
             )}
+            ${raw(
+              o.allowedNext.includes('refunded')
+                ? '<button class="mini-btn ghost" data-next="refunded">Refund</button>'
+                : ''
+            )}
           </td>
         </tr>`;
       })
@@ -152,6 +157,7 @@ delegate(staffRows, '[data-next]', 'click', async (e, node) => {
     // a hand-moved order is pinned, so the auto-kitchen leaves it alone
     await api.setStatus(token, next, true);
     if (next === 'cancelled') toast(`${token} cancelled`, 'info');
+    if (next === 'refunded') toast(`${token} refunded`, 'info');
   } catch (err) {
     toast(err.message, 'bad');
   } finally {
