@@ -27,10 +27,11 @@ function renderCartLines() {
     cartItemsBox,
     items
       .map(({ dishId, qty }) => {
-        const dish = state.dishes.find((d) => d.id === dishId);
-        const name = dish ? dish.name : `Dish #${dishId}`;
-        const price = dish ? rupees(dish.price * qty) : '...';
-        const stockNote = dish
+        const dish = state.dishes.find((d) => d.id === dishId) || (state.dishCache && state.dishCache[dishId]);
+        const line = state.quote && state.quote.lines && state.quote.lines.find((l) => l.dishId === dishId);
+        const name = (dish && dish.name) || (line && line.name) || `Dish #${dishId}`;
+        const price = line ? rupees(line.lineTotal) : (dish ? rupees(dish.price * qty) : '...');
+        const stockNote = dish && dish.stock !== undefined
           ? html`<small class="muted">In stock: ${dish.stock}${qty > dish.stock ? ' · cart quantity exceeds stock' : ''}</small>`
           : '';
 
@@ -117,6 +118,11 @@ async function refreshQuote() {
 
     state.quote = quote;
     state.rushHour = quote.rushHour;
+    state.dishCache = state.dishCache || {};
+    (quote.lines || []).forEach((l) => {
+      state.dishCache[l.dishId] = { id: l.dishId, name: l.name, price: l.price, category: l.category };
+    });
+    renderCartLines();
     renderBill(quote);
     setCheckoutEnabled(true);
 
@@ -173,7 +179,7 @@ cartOverlay.addEventListener('click', closeCart);
 delegate(cartItemsBox, '[data-cart]', 'click', (e, node) => {
   const line = node.closest('.cart-line');
   const dishId = Number(line.dataset.id);
-  const dish = state.dishes.find((d) => d.id === dishId) || { id: dishId, stock: 99 };
+  const dish = state.dishes.find((d) => d.id === dishId) || (state.dishCache && state.dishCache[dishId]) || { id: dishId, stock: 99 };
   const action = node.dataset.cart;
 
   if (action === 'remove') {

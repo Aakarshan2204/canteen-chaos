@@ -44,12 +44,17 @@ async function loadMenu({ append = false } = {}) {
     if (myRequest !== menuRequestId) return; // a newer search already won
 
     state.dishes = append ? state.dishes.concat(data.dishes) : data.dishes;
+    state.dishCache = state.dishCache || {};
+    data.dishes.forEach((d) => { state.dishCache[d.id] = d; });
     state.total = data.total;
     state.pages = data.pages;
     state.hasMore = data.hasMore;
     state.slot = data.slot;
     state.open = data.open;
     state.serverTime = data.serverTime;
+
+    const allCount = catTabs.querySelector('.cat-tab[data-cat="All"] .cat-count');
+    if (allCount) allCount.textContent = state.total;
 
     renderSlotBar();
     renderMenu();

@@ -49,10 +49,14 @@ function renderDishDetail(dish) {
         .join('')
     : '<p class="status-sub">Nothing yet — be the first.</p>';
 
+  const waitTime =
+    dish.minutesUntilSlot < 60
+      ? `${dish.minutesUntilSlot} min`
+      : `about ${Math.round(dish.minutesUntilSlot / 60)} hr`;
   const waitNote =
     dish.servedNow || dish.minutesUntilSlot === null
       ? ''
-      : html`<p class="dish-wait">Served again in about ${Math.round(dish.minutesUntilSlot / 60)} hr</p>`;
+      : html`<p class="dish-wait">Served again in ${waitTime}</p>`;
 
   render(
     dishBody,
