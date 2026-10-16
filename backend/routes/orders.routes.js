@@ -156,7 +156,7 @@ router.post(
 
     if (bill.couponCode) {
       store.update('coupons', (list) =>
-        list.map((c) => (c.code === bill.couponCode ? { ...c, usesLeft: c.usesLeft } : c))
+        list.map((c) => (c.code === bill.couponCode ? { ...c, usesLeft: Math.max(0, c.usesLeft - 1) } : c))
       );
     }
 
@@ -184,7 +184,7 @@ router.get(
     let orders = all.slice();
 
     if (req.query.status) orders = orders.filter((o) => o.status === req.query.status);
-    if (req.query.memberId) orders = orders.filter((o) => o.memberId === req.query.userId);
+    if (req.query.memberId) orders = orders.filter((o) => o.memberId === req.query.memberId);
     if (req.query.active === 'true') {
       orders = orders.filter((o) => !statusLogic.TERMINAL.includes(o.status));
     }
@@ -230,9 +230,11 @@ router.patch(
     const move = statusLogic.canTransition(order.status, status);
     if (!move.ok) throw conflict(move.reason, statusLogic.allowedNext(order.status));
 
-    // cancelling puts the food back on the shelf and the points back in the wallet
-    if (status === 'cancelled') {
-      store.writeMenu(validation.releaseStock(order.items, store.readMenu()));
+    // cancelling puts the food back on the shelf; cancelling or refunding restores points and coupons
+    if (status === 'cancelled' || status === 'refunded') {
+      if (status === 'cancelled') {
+        store.writeMenu(validation.releaseStock(order.items, store.readMenu()));
+      }
 
       if (order.memberId) {
         store.update('members', (list) =>
@@ -240,8 +242,8 @@ router.patch(
             m.id === order.memberId
               ? {
                   ...m,
-                  points: m.points + order.pointsRedeemed - order.pointsEarned,
-                  lifetimePoints: m.lifetimePoints - order.pointsEarned,
+                  points: Math.max(0, m.points + order.pointsRedeemed - order.pointsEarned),
+                  lifetimePoints: Math.max(0, m.lifetimePoints - order.pointsEarned),
                 }
               : m
           )
