@@ -75,7 +75,7 @@ function packingCharge(lines) {
 /** Rs. 15 off when a combo-eligible dish is bought together with a beverage. */
 function comboDiscount(lines) {
   const hasBeverage = lines.some((l) => l.category === 'Beverages');
-  const hasCombo = lines.some((l) => (l.tags || []).includes('combo-eligible'));
+  const hasCombo = lines.some((l) => l.category !== 'Beverages' && (l.tags || []).includes('combo-eligible'));
   return hasBeverage && hasCombo ? COMBO_DISCOUNT : 0;
 }
 
@@ -86,6 +86,10 @@ function applyCoupon(code, lines, coupons, { slot = null, now = new Date() } = {
   const wanted = String(code).trim().toUpperCase();
   const coupon = coupons.find((c) => c.code.toUpperCase() === wanted);
   if (!coupon) return { valid: false, discount: 0, reason: 'Coupon not found' };
+
+  if (coupon.expiresAt && new Date(coupon.expiresAt) <= now) {
+    return { valid: false, discount: 0, reason: 'This coupon has expired' };
+  }
 
   if (coupon.usesLeft <= 0) {
     return { valid: false, discount: 0, reason: 'This coupon is fully used' };
