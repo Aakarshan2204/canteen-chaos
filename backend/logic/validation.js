@@ -38,6 +38,7 @@ function validateLine(item, index, menu, now, seen) {
   if (blocked && isServedNow(dish, now) === false) errors.push(`${dish.name}: ${blocked}`);
   else if (dish.disabled) errors.push(`${dish.name} is off the menu today`);
   else if (Number(dish.stock) <= 0) errors.push(`${dish.name} is sold out`);
+  else if (qty > Number(dish.stock)) errors.push(`Only ${dish.stock} ${dish.name} left in stock`);
 
   return errors;
 }
@@ -90,7 +91,7 @@ function validateOrder(order, menu, { now = new Date(), orders = [] } = {}) {
     if (!slotCheck.ok) errors.push(slotCheck.reason);
   }
 
-  if (order.tipPercent !== undefined && order.tipPercent !== null && order.tipFlat) {
+  if (Number(order.tipPercent) > 0 && Number(order.tipFlat) > 0) {
     errors.push('Send either a tip percentage or a flat tip, not both');
   }
 
@@ -108,6 +109,7 @@ function reserveStock(items, menu) {
   items.forEach((item) => {
     const dish = next.find((d) => d.id === Number(item.dishId));
     if (!dish) return errors.push(`dish ${item.dishId} vanished`);
+    if (dish.stock < item.qty) return errors.push(`only ${dish.stock} ${dish.name} left`);
     dish.stock -= item.qty;
   });
 
@@ -120,7 +122,7 @@ function releaseStock(items, menu) {
   return menu.map((dish) => {
     const line = items.find((i) => Number(i.dishId) === dish.id);
     if (!line) return dish;
-    return { ...dish, stock: dish.stock - line.qty };
+    return { ...dish, stock: dish.stock + line.qty };
   });
 }
 
