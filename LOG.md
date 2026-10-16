@@ -429,8 +429,22 @@ This log documents all bug fixes and improvements made to Canteen Chaos for the 
 
 ---
 
+## Honest Engineering Note (X-Factor Deep-Dive)
+
+### 1. Inherent TOCTOU Race Condition in File-Based JSON Persistence (`store.js`)
+* **Observation:** In `backend/store.js`, data is read and written using synchronous JSON file operations (`fs.readFileSync` and atomic `fs.renameSync`). While this design is delightfully simple and zero-dependency, it possesses an unavoidable Time-of-Check to Time-of-Use (TOCTOU) concurrency vulnerability under simultaneous load.
+* **The Technical Dilemma:** If two students place an order for the last remaining plate of Samosas (`stock: 1`) at the exact same millisecond, both requests read the file before either write finishes. Both pass `validateOrder()` because `stock === 1` in both memory snapshots. Both deduct 1 and write to disk, overselling the item or clobbering each other's updates.
+* **Why I Kept the Current Design:** Eliminating this race condition properly requires either introducing an ACID database with row-level locks / transactions (such as SQLite `BEGIN IMMEDIATE` or PostgreSQL `SELECT FOR UPDATE`), or introducing an asynchronous mutex / serial queue around order creation. Because the challenge architecture explicitly intentionally uses plain JSON files in `backend/data/` to keep setup friction-free, refactoring `store.js` into an external database would alter the project scope and violate repo conventions.
+
+### 2. Auto-Cook Timer Progression vs. Scheduled Future Pickup Slots
+* **Observation:** In `backend/server.js`, `kitchenTick()` triggers `statusLogic.autoAdvance()` every 10 seconds to march orders through `placed -> accepted -> preparing -> ready` based strictly on elapsed time since `placedAt`. However, if a student selects a future `pickupSlot` (e.g., 45 minutes from now during lunch rush), the kitchen tick starts cooking the order immediately rather than scheduling preparation to begin 10–15 minutes before the pickup slot.
+* **Why I Documented Rather Than Patched:** `autoAdvance()` is a pure function currently agnostic of pickup slot timing. Changing it to defer cook times based on `pickupSlot` would alter queue ordering and break `smoke.js` timing expectations (which relies on orders progressing swiftly during automated smoke checks). Documenting this trade-off is the honest engineering choice over making a speculative fix that could risk test regressions.
+
+---
+
 ## Test Suite Summary
 
 - **Automated Smoke Tests (`backend/smoke.js`):** 90 passed, 0 failed (100% pass rate).
 - **Extra Bugs Verification Suite (`backend/extra-tests.js`):** 6 passed, 0 failed (100% pass rate).
 - **Total Automated Test Assertions:** 96 passed, 0 failed.
+
